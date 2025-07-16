@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATS Resume Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ATS Resume Analyzer</h1>
+            <p>Upload your resume (PDF) and enter job description to get instant feedback</p>
+        </header>
+
+        <main>
+            <div class="tabs">
+                <button class="tab-button active" data-tab="score">Score Resume</button>
+                <button class="tab-button" data-tab="improve">Improve Resume</button>
+            </div>
+
+            <!-- Score Tab -->
+            <div class="tab-content active" id="score-tab">
+                <div class="upload-section">
+                    <h2>Score Your Resume</h2>
+                    <form id="score-form" enctype="multipart/form-data">
+                        <div class="file-upload">
+                            <label for="score-resume">Upload Resume (PDF)</label>
+                            <input type="file" id="score-resume" name="resume" accept=".pdf" required>
+                            <span class="file-name" id="score-resume-name">No file selected</span>
+                        </div>
+                        <div class="text-input">
+                            <label for="score-jd">Job Description</label>
+                            <textarea id="score-jd" name="jd" placeholder="Paste the job description here..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">Analyze Resume</button>
+                    </form>
+                </div>
+                <div class="results" id="score-results"></div>
+            </div>
+
+            <!-- Improve Tab -->
+            <div class="tab-content" id="improve-tab">
+                <div class="upload-section">
+                    <h2>Improve Your Resume</h2>
+                    <form id="improve-form" enctype="multipart/form-data">
+                        <div class="file-upload">
+                            <label for="improve-resume">Upload Resume (PDF)</label>
+                            <input type="file" id="improve-resume" name="resume" accept=".pdf" required>
+                            <span class="file-name" id="improve-resume-name">No file selected</span>
+                        </div>
+                        <div class="text-input">
+                            <label for="improve-jd">Job Description (Optional)</label>
+                            <textarea id="improve-jd" name="jd" placeholder="Paste the job description here (optional for general improvements)..."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">Get Suggestions</button>
+                    </form>
+                </div>
+                <div class="results" id="improve-results"></div>
+            </div>
+        </main>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your resume...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
