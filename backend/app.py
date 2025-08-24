@@ -69,6 +69,34 @@ def improve_fn(resume_file_path, job_desc: Optional[str]) -> str:
     except Exception as e:
         return f"Error: {e}"
 
+def format_score_display(result_json) -> str:
+    """
+    Takes the result JSON (as dict or str), parses it, and returns a Markdown string for display.
+    """
+    if isinstance(result_json, str):
+        try:
+            result = json.loads(result_json)
+        except Exception:
+            return f"```\n{result_json}\n```"
+    else:
+        result = result_json
+
+    md = f"## 🏆 ATS Compatibility Score: **{result.get('overall_score', 0)}%**\n\n"
+    md += "### Category Scores\n"
+    md += "| Skills | Experience | Education |\n"
+    md += "|--------|------------|-----------|\n"
+    cs = result.get("category_scores", {})
+    md += f"| {cs.get('skills',0)}% | {cs.get('experience',0)}% | {cs.get('education',0)}% |\n\n"
+
+    gaps = result.get("top_skill_gaps", [])
+    if gaps:
+        md += "### 🚩 Top Skill Gaps\n"
+        for gap in gaps:
+            md += f"- {gap}\n"
+    return md
+
+# ...existing code...
+
 with gr.Blocks(title="Resume AI (Score & Improve)") as demo:
     gr.Markdown(
         """
@@ -87,11 +115,22 @@ with gr.Blocks(title="Resume AI (Score & Improve)") as demo:
         score_btn = gr.Button("⚖️ Score Resume", variant="primary")
         improve_btn = gr.Button("✨ Improve Resume")
 
-    score_out = gr.Code(label="Score (JSON)", language="json")
+    score_out = gr.Markdown(label="Score (Formatted)")
     improve_out = gr.Markdown(label="Improvement Suggestions")
 
-    score_btn.click(fn=score_fn, inputs=[resume, jd], outputs=score_out)
+    def score_fn_display(resume_file_path, job_desc: str) -> str:
+        try:
+            if not job_desc or not job_desc.strip():
+                raise ValueError("Please paste a job description.")
+            resume_text = read_resume_to_text(resume_file_path)
+            result = score(resume_text, job_desc)
+            return format_score_display(result)
+        except Exception as e:
+            return f"Error: {e}"
+
+    score_btn.click(fn=score_fn_display, inputs=[resume, jd], outputs=score_out)
     improve_btn.click(fn=improve_fn, inputs=[resume, jd], outputs=improve_out)
+
 
 if __name__ == "__main__":
     demo.queue().launch()
