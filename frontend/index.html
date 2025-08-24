@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <h1>ATS Resume Analyzer</h1>
-            <p>Upload your resume (PDF or TXT) and enter job description to get instant feedback</p>
+            <p>Upload your resume (PDF) and enter job description to get instant feedback</p>
         </header>
 
         <main>
@@ -25,8 +25,8 @@
                     <h2>Score Your Resume</h2>
                     <form id="score-form" enctype="multipart/form-data">
                         <div class="file-upload">
-                            <label for="score-resume">Upload Resume (PDF or TXT)</label>
-                            <input type="file" id="score-resume" name="resume" accept=".pdf,.txt" required>
+                            <label for="score-resume">Upload Resume (PDF)</label>
+                            <input type="file" id="score-resume" name="resume" accept=".pdf" required>
                             <span class="file-name" id="score-resume-name">No file selected</span>
                         </div>
                         <div class="text-input">
@@ -45,8 +45,8 @@
                     <h2>Improve Your Resume</h2>
                     <form id="improve-form" enctype="multipart/form-data">
                         <div class="file-upload">
-                            <label for="improve-resume">Upload Resume (PDF or TXT)</label>
-                            <input type="file" id="improve-resume" name="resume" accept=".pdf,.txt" required>
+                            <label for="improve-resume">Upload Resume (PDF)</label>
+                            <input type="file" id="improve-resume" name="resume" accept=".pdf" required>
                             <span class="file-name" id="improve-resume-name">No file selected</span>
                         </div>
                         <div class="text-input">
@@ -66,6 +66,6 @@
         </div>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
