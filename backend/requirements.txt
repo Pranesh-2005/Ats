@@ -3,3 +3,4 @@ flask-cors
 python-dotenv
 openai
 PyPDF2
+gradio
