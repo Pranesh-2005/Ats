@@ -1,8 +1,3 @@
-import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
-
-// Your Gradio Space name
-const SPACE_NAME = "PraneshJs/ATSScoreCheckerAndSuggestor";
-
 // Tab functionality
 document.querySelectorAll('.tab-button').forEach(button => {
     button.addEventListener('click', () => {
@@ -26,25 +21,6 @@ document.querySelectorAll('input[type="file"]').forEach(input => {
     });
 });
 
-// Gradio API helpers
-async function callGradioScoreAPI(file, jobDesc) {
-    const client = await Client.connect(SPACE_NAME);
-    const result = await client.predict("/score_fn_display", {
-        resume_file_path: file,
-        job_desc: jobDesc
-    });
-    return result.data;
-}
-
-async function callGradioImproveAPI(file, jobDesc) {
-    const client = await Client.connect(SPACE_NAME);
-    const result = await client.predict("/improve_fn", {
-        resume_file_path: file,
-        job_desc: jobDesc
-    });
-    return result.data;
-}
-
 // Score form handler
 document.getElementById('score-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -64,12 +40,23 @@ document.getElementById('score-form').addEventListener('submit', async (e) => {
     try {
         showLoading();
 
-        // Call Gradio API
-        const result = await callGradioScoreAPI(resumeFile, jdText);
+        const formData = new FormData();
+        formData.append('resume', resumeFile);
+        formData.append('jd', jdText);
 
+        const response = await fetch('http://127.0.0.1:5000/score', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
         hideLoading();
-        displayScoreResults(result);
 
+        if (data.error) {
+            showError('score-results', data.error);
+        } else {
+            displayScoreResults(data.result);
+        }
     } catch (error) {
         hideLoading();
         showError('score-results', `Error: ${error.message}`);
@@ -91,12 +78,23 @@ document.getElementById('improve-form').addEventListener('submit', async (e) => 
     try {
         showLoading();
 
-        // Call Gradio API
-        const result = await callGradioImproveAPI(resumeFile, jdText);
+        const formData = new FormData();
+        formData.append('resume', resumeFile);
+        formData.append('jd', jdText);
 
+        const response = await fetch('http://127.0.0.1:5000/improve', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
         hideLoading();
-        displayImproveResults(result);
 
+        if (data.error) {
+            showError('improve-results', data.error);
+        } else {
+            displayImproveResults(data.result);
+        }
     } catch (error) {
         hideLoading();
         showError('improve-results', `Error: ${error.message}`);
@@ -129,12 +127,12 @@ function displayScoreResults(data) {
     const container = document.getElementById('score-results');
     let html = '';
 
-    // If the result is Markdown (from your Gradio function), display as HTML
+    // If the result is Markdown (from your backend), display as HTML
     if (typeof data === "string" && data.trim().startsWith("##")) {
-        html = marked.parse(data); // Use marked.js if you want Markdown parsing, or just set innerHTML
+        html = marked.parse(data); // Use marked.js if you want Markdown parsing
     } else if (typeof data === "string") {
         html = `<pre>${data}</pre>`;
-    } else if (data.overall_score !== undefined) {
+    } else if (data && data.overall_score !== undefined) {
         html = `
             <div class="score-display">
                 <div class="score-number">${data.overall_score}%</div>
