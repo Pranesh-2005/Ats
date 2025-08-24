@@ -102,8 +102,8 @@ with gr.Blocks(title="Resume AI (Score & Improve)") as demo:
         """
         # 📄 Resume AI — Score & Improve
         Upload your resume (PDF or TXT), paste a Job Description, and get:
-        - **Score**: a JSON score/breakdown from your `score()` function  
-        - **Improve**: actionable suggestions from your `improve()` function
+        - **Score**: A formatted breakdown of your resume's ATS compatibility
+        - **Improve**: A healthy set of suggestions to enhance your resume
         """
     )
 
