@@ -22,44 +22,41 @@ def extract_text_from_pdf(file_obj: io.IOBase) -> str:
     except Exception as e:
         raise ValueError(f"Error reading PDF: {e}")
 
-def read_resume_to_text(resume_file) -> str:
+def read_resume_to_text(resume_file_path) -> str:
     """
-    Accepts a file-like object and returns text content.
+    Accepts a file path and returns text content.
     Supports PDF and plain text files.
     """
-    if resume_file is None:
+    if resume_file_path is None:
         raise ValueError("Please upload a resume file.")
 
-    filename = getattr(resume_file, "name", "").lower()
-    resume_file.seek(0)
-    data = resume_file.read()
-
-    if not data:
-        raise ValueError("Uploaded file is empty.")
-
+    filename = str(resume_file_path).lower()
     if filename.endswith(".pdf"):
-        resume_file.seek(0)
-        return extract_text_from_pdf(resume_file)
+        with open(resume_file_path, "rb") as f:
+            return extract_text_from_pdf(f)
+    else:
+        with open(resume_file_path, "rb") as f:
+            data = f.read()
+        if not data:
+            raise ValueError("Uploaded file is empty.")
+        try:
+            return data.decode("utf-8").strip()
+        except UnicodeDecodeError:
+            return data.decode("latin-1").strip()
 
-    # Plain text fallback
-    try:
-        return data.decode("utf-8").strip()
-    except UnicodeDecodeError:
-        return data.decode("latin-1").strip()
-
-def score_fn(resume_file, job_desc: str) -> str:
+def score_fn(resume_file_path, job_desc: str) -> str:
     try:
         if not job_desc or not job_desc.strip():
             raise ValueError("Please paste a job description.")
-        resume_text = read_resume_to_text(resume_file)
+        resume_text = read_resume_to_text(resume_file_path)
         result = score(resume_text, job_desc)
         return json.dumps(result, indent=2, ensure_ascii=False)
     except Exception as e:
         return f"Error: {e}"
 
-def improve_fn(resume_file, job_desc: Optional[str]) -> str:
+def improve_fn(resume_file_path, job_desc: Optional[str]) -> str:
     try:
-        resume_text = read_resume_to_text(resume_file)
+        resume_text = read_resume_to_text(resume_file_path)
         jd_text = job_desc if job_desc and job_desc.strip() else None
         suggestions = improve(resume_text, jd_text)
         if isinstance(suggestions, (list, tuple)):
@@ -83,7 +80,7 @@ with gr.Blocks(title="Resume AI (Score & Improve)") as demo:
     )
 
     with gr.Row():
-        resume = gr.File(label="Upload Resume (PDF or TXT)", file_types=[".pdf", ".txt"], type="file")
+        resume = gr.File(label="Upload Resume (PDF or TXT)", file_types=[".pdf", ".txt"], type="filepath")
         jd = gr.Textbox(label="Job Description (paste here)", lines=10, placeholder="Paste JD text...")
 
     with gr.Row():
