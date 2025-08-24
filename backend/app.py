@@ -1,83 +1,126 @@
-import os
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from dotenv import load_dotenv
-from resume_ai import score, improve
-import PyPDF2
 import io
+import json
+from typing import Optional
 
-load_dotenv()
-app = Flask(__name__)
-CORS(app)
+import gradio as gr
+import PyPDF2
 
-def extract_text_from_pdf(pdf_file):
-    """Extract text from PDF file"""
+# your existing functions (kept exactly as-is, just imported)
+from resume_ai import score, improve
+
+
+def extract_text_from_pdf(file_obj: io.BytesIO) -> str:
+    """Extract text from a PDF-like file object."""
     try:
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
-        return text.strip()
+        reader = PyPDF2.PdfReader(file_obj)
+        text_chunks = []
+        for page in reader.pages:
+            # page.extract_text() can return None; guard it
+            page_text = page.extract_text() or ""
+            text_chunks.append(page_text)
+        text = "\n".join(text_chunks).strip()
+        if not text:
+            raise ValueError("No extractable text found in PDF.")
+        return text
     except Exception as e:
-        raise ValueError(f"Error reading PDF: {str(e)}")
+        raise ValueError(f"Error reading PDF: {e}")
 
-@app.route("/score", methods=["POST"])
-def score_route():
+
+def read_resume_to_text(resume_file) -> str:
+    """
+    Accepts a gradio file object (dict-like) and returns text content.
+    Supports PDF and plain text files.
+    """
+    if resume_file is None:
+        raise ValueError("Please upload a resume file.")
+
+    name: str = resume_file.get("name", "").lower()
+    data: bytes = resume_file.get("data", b"")
+
+    if not data:
+        raise ValueError("Uploaded file is empty.")
+
+    # PDF path
+    if name.endswith(".pdf"):
+        return extract_text_from_pdf(io.BytesIO(data))
+
+    # Plain text fallback
     try:
-        # Check for resume file
-        if "resume" not in request.files:
-            return jsonify({"error": "Missing resume file"}), 400
-        
-        # Check for job description text
-        if "jd" not in request.form:
-            return jsonify({"error": "Missing job description"}), 400
-        
-        resume_file = request.files["resume"]
-        jd_text = request.form["jd"]
-        
-        # Extract text from PDF resume
-        if resume_file.filename.lower().endswith('.pdf'):
-            resume_text = extract_text_from_pdf(resume_file)
+        return data.decode("utf-8").strip()
+    except UnicodeDecodeError:
+        # last-ditch: try latin-1
+        return data.decode("latin-1").strip()
+
+
+# ------------------- Gradio callback fns -------------------
+
+def score_fn(resume_file, job_desc: str) -> str:
+    """
+    Wraps your `score()` to be Gradio-friendly.
+    Returns pretty JSON for display.
+    """
+    try:
+        if not job_desc or not job_desc.strip():
+            raise ValueError("Please paste a job description.")
+
+        resume_text = read_resume_to_text(resume_file)
+        result = score(resume_text, job_desc)  # your existing function
+        # pretty print JSON for UI
+        return json.dumps(result, indent=2, ensure_ascii=False)
+    except Exception as e:
+        # Show as error string in output
+        return f"Error: {e}"
+
+
+def improve_fn(resume_file, job_desc: Optional[str]) -> str:
+    """
+    Wraps your `improve()` to be Gradio-friendly.
+    Returns markdown suggestions.
+    """
+    try:
+        resume_text = read_resume_to_text(resume_file)
+        jd_text = job_desc if job_desc and job_desc.strip() else None
+        suggestions = improve(resume_text, jd_text)  # your existing function
+
+        # Render suggestions smartly depending on type
+        if isinstance(suggestions, (list, tuple)):
+            bullets = "\n".join(f"- {s}" for s in suggestions)
+            return f"### Suggestions\n{bullets}"
+        elif isinstance(suggestions, dict):
+            return "```json\n" + json.dumps(suggestions, indent=2, ensure_ascii=False) + "\n```"
         else:
-            # Fallback for text files
-            resume_text = resume_file.read().decode('utf-8')
-        
-        # Use your existing score function
-        result = score(resume_text, jd_text)
-        return jsonify(result)
-    
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+            return str(suggestions)
     except Exception as e:
-        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+        return f"Error: {e}"
 
-@app.route("/improve", methods=["POST"])
-def improve_route():
-    try:
-        # Check for resume file
-        if "resume" not in request.files:
-            return jsonify({"error": "Missing resume file"}), 400
-        
-        resume_file = request.files["resume"]
-        jd_text = request.form.get("jd", None)  # Optional
-        
-        # Extract text from PDF resume
-        if resume_file.filename.lower().endswith('.pdf'):
-            resume_text = extract_text_from_pdf(resume_file)
-        else:
-            # Fallback for text files
-            resume_text = resume_file.read().decode('utf-8')
-        
-        # Use your existing improve function
-        suggestions = improve(resume_text, jd_text)
-        return jsonify({"suggestions": suggestions})
-    
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+# ------------------- UI -------------------
+
+with gr.Blocks(title="Resume AI (Score & Improve)") as demo:
+    gr.Markdown(
+        """
+        # 📄 Resume AI — Score & Improve
+        Upload your resume (PDF or TXT), paste a Job Description, and get:
+        - **Score**: a JSON score/breakdown from your `score()` function  
+        - **Improve**: actionable suggestions from your `improve()` function
+        """
+    )
+
+    with gr.Row():
+        resume = gr.File(label="Upload Resume (PDF or TXT)", file_types=[".pdf", ".txt"], type="binary")
+        jd = gr.Textbox(label="Job Description (paste here)", lines=10, placeholder="Paste JD text...")
+
+    with gr.Row():
+        score_btn = gr.Button("⚖️ Score Resume", variant="primary")
+        improve_btn = gr.Button("✨ Improve Resume")
+
+    score_out = gr.Code(label="Score (JSON)", language="json")
+    improve_out = gr.Markdown(label="Improvement Suggestions")
+
+    score_btn.click(fn=score_fn, inputs=[resume, jd], outputs=score_out)
+    improve_btn.click(fn=improve_fn, inputs=[resume, jd], outputs=improve_out)
+
+# For Hugging Face Spaces
+# (Spaces will discover the variable `demo` and run it.)
 if __name__ == "__main__":
-    # Get port from environment variable (Render provides this) or default to 5000 for local
-    port = int(os.environ.get("PORT", 5000))
-    # Bind to 0.0.0.0 to accept connections from any IP (required for Render)
-    app.run(host="0.0.0.0", port=port, debug=False)
+    demo.queue().launch()
