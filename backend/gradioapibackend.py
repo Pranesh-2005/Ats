@@ -1,37 +1,76 @@
+import os
+import shutil
+import tempfile
+from flask_cors import CORS
+import threading
+import time
+from flask import Flask, request, jsonify
 from gradio_client import Client, handle_file
 
-# Initialize the Gradio Space client
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "tmp")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 client = Client("PraneshJs/ATSScoreCheckerAndSuggestor")
+app = Flask(__name__)
+CORS(app)
 
-# Example usage for /score_fn_display
-def get_score(resume_path, job_desc):
-    result = client.predict(
-        resume_file_path=handle_file(resume_path),
-        job_desc=job_desc,
-        api_name="/score_fn_display"
-    )
-    return result
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Example usage for /improve_fn
-def get_improvement_suggestions(resume_path, job_desc):
-    result = client.predict(
-        resume_file_path=handle_file(resume_path),
-        job_desc=job_desc,
-        api_name="/improve_fn"
-    )
-    return result
+def schedule_cleanup(file_path, delay=300):
+    def cleanup():
+        time.sleep(delay)
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception:
+            pass
+    threading.Thread(target=cleanup, daemon=True).start()
+
+@app.route("/score", methods=["POST"])
+def score_api():
+    if "resume" not in request.files or "jd" not in request.form:
+        return jsonify({"error": "Missing resume or job description"}), 400
+
+    resume = request.files["resume"]
+    jd = request.form["jd"]
+
+    # Save file to tmp folder
+    tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], resume.filename)
+    resume.save(tmp_path)
+    schedule_cleanup(tmp_path)
+
+    try:
+        result = client.predict(
+            resume_file_path=handle_file(tmp_path),
+            job_desc=jd,
+            api_name="/score_fn_display"
+        )
+        return jsonify({"result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/improve", methods=["POST"])
+def improve_api():
+    if "resume" not in request.files or "jd" not in request.form:
+        return jsonify({"error": "Missing resume or job description"}), 400
+
+    resume = request.files["resume"]
+    jd = request.form["jd"]
+
+    # Save file to tmp folder
+    tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], resume.filename)
+    resume.save(tmp_path)
+    schedule_cleanup(tmp_path)
+
+    try:
+        result = client.predict(
+            resume_file_path=handle_file(tmp_path),
+            job_desc=jd,
+            api_name="/improve_fn"
+        )
+        return jsonify({"result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    # Replace with your local file path and job description
-    resume_file = "your_resume.pdf"  # or "your_resume.txt"
-    job_description = "Paste your job description here."
-
-    # Get ATS score
-    print("=== ATS Score ===")
-    score_result = get_score(resume_file, job_description)
-    print(score_result)
-
-    # Get improvement suggestions
-    print("\n=== Improvement Suggestions ===")
-    improve_result = get_improvement_suggestions(resume_file, job_description)
-    print(improve_result)
+    app.run(host="0.0.0.0", port=5000)
