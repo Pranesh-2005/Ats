@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Resume AI - ATS Optimization Platform</title>
-    <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#164e63">
   <meta name="background-color" content="#ffffff">
   <meta name="description" content="ATS Resume Analyzer and Optimizer. Upload your resume and get instant feedback and improvement suggestions.">
@@ -28,72 +28,76 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-  <header class="header">
-    <h1>🚀 Resume AI</h1>
-    <p class="subtitle">ATS Optimization Platform</p>
-  </header>
+  <div class="app-wrapper">
+    <header class="header">
+      <h1>🚀 Resume AI</h1>
+      <p class="subtitle">ATS Optimization Platform</p>
+    </header>
 
-  <main class="container">
-    <section class="card">
-      <h2>
-        <span class="card-icon">📄</span>
-        Upload & Analyze
-      </h2>
-      <div class="form-group">
-        <label for="resume" class="form-label">Upload Resume (PDF/TXT)</label>
-        <input type="file" id="resume" class="form-input" accept=".pdf,.txt" />
-      </div>
-      <div class="form-group">
-        <label for="jd" class="form-label">Job Description</label>
-        <textarea 
-          id="jd" 
-          class="form-textarea" 
-          placeholder="Paste the job description here to get personalized ATS optimization recommendations..."
-          rows="6"
-        ></textarea>
-      </div>
-      <div class="btn-group">
-        <button class="btn btn-primary" onclick="scoreResume()">
-          <span>⚖️</span>
-          Score Resume
-        </button>
-        <button class="btn btn-secondary" onclick="improveResume()">
-          <span>✨</span>
-          Improve Resume
-        </button>
-      </div>
-    </section>
+    <main class="container">
+      <section class="card">
+        <h2>
+          <span class="card-icon">📄</span>
+          Upload & Analyze
+        </h2>
+        <form id="resume-form" autocomplete="off">
+          <div class="form-group">
+            <label for="resume" class="form-label">Upload Resume (PDF/TXT)</label>
+            <input type="file" id="resume" class="form-input" accept=".pdf,.txt" />
+          </div>
+          <div class="form-group">
+            <label for="jd" class="form-label">Job Description</label>
+            <textarea 
+              id="jd" 
+              class="form-textarea" 
+              placeholder="Paste the job description here to get personalized ATS optimization recommendations..."
+              rows="6"
+            ></textarea>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn btn-primary" onclick="scoreResume()">
+              <span>⚖️</span>
+              Score Resume
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="improveResume()">
+              <span>✨</span>
+              Improve Resume
+            </button>
+          </div>
+        </form>
+      </section>
 
-    <section class="card">
-      <h2>
-        <span class="card-icon">💡</span>
-        Quick Tips
-      </h2>
-      <div style="color: var(--text-secondary); line-height: 1.7;">
-        <p style="margin-bottom: 1rem;"><strong>ATS Optimization:</strong> Use keywords from the job description naturally throughout your resume.</p>
-        <p style="margin-bottom: 1rem;"><strong>Format Matters:</strong> Stick to standard fonts and avoid complex layouts that ATS systems can't parse.</p>
-        <p style="margin-bottom: 1rem;"><strong>Quantify Results:</strong> Include specific numbers and achievements to stand out.</p>
-        <p><strong>Tailor Content:</strong> Customize your resume for each application to match the role requirements.</p>
-      </div>
-    </section>
-
-    <section class="card results-card">
-      <h2>
-        <span class="card-icon">📊</span>
-        Analysis Results
-      </h2>
-      <div class="results-content">
-        <div class="result-section" id="score-section" style="display: none;">
-          <h3>ATS Score</h3>
-          <div id="score"></div>
+      <section class="card">
+        <h2>
+          <span class="card-icon">💡</span>
+          Quick Tips
+        </h2>
+        <div style="color: var(--text-secondary); line-height: 1.7;">
+          <p style="margin-bottom: 1rem;"><strong>ATS Optimization:</strong> Use keywords from the job description naturally throughout your resume.</p>
+          <p style="margin-bottom: 1rem;"><strong>Format Matters:</strong> Stick to standard fonts and avoid complex layouts that ATS systems can't parse.</p>
+          <p style="margin-bottom: 1rem;"><strong>Quantify Results:</strong> Include specific numbers and achievements to stand out.</p>
+          <p><strong>Tailor Content:</strong> Customize your resume for each application to match the role requirements.</p>
         </div>
-        <div class="result-section" id="improve-section" style="display: none;">
-          <h3>Improvement Suggestions</h3>
-          <div id="improvements"></div>
+      </section>
+
+      <section class="card results-card">
+        <h2>
+          <span class="card-icon">📊</span>
+          Analysis Results
+        </h2>
+        <div class="results-content">
+          <div class="result-section" id="score-section" style="display: none;">
+            <h3>ATS Score</h3>
+            <div id="score"></div>
+          </div>
+          <div class="result-section" id="improve-section" style="display: none;">
+            <h3>Improvement Suggestions</h3>
+            <div id="improvements"></div>
+          </div>
         </div>
-      </div>
-    </section>
-  </main>
+      </section>
+    </main>
+  </div>
   <script src="script.js"></script>
 </body>
 </html>
