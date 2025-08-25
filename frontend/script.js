@@ -43,6 +43,7 @@ async function scoreResume() {
 
     const htmlContent = parseMarkdown(data.result);
     scoreBox.innerHTML = htmlContent;
+    scoreSection.scrollIntoView({ behavior: "smooth", block: "center" });
 
     const scoreMatch = data.result.match(/(\d+)%/);
     if (scoreMatch) {
@@ -92,6 +93,7 @@ async function improveResume() {
 
     if (typeof data.result === "string") {
       improvementsBox.innerHTML = parseMarkdown(data.result);
+      improveSection.scrollIntoView({ behavior: "smooth", block: "center" });
     } else if (Array.isArray(data.result)) {
       improvementsBox.innerHTML = "<h3>💡 Suggestions:</h3><ul>" +
         data.result.map(s => `<li>${s}</li>`).join("") +
