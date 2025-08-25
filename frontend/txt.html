@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600;700&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Added markdown CDN for better parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --primary: #164e63;
@@ -303,11 +305,23 @@
     .results-card {
       grid-column: 1 / -1;
       margin-top: 2rem;
+      display: none;
     }
 
-    .results-content {
-      display: grid;
-      gap: 2rem;
+    .results-card.show {
+      display: block;
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .result-section {
@@ -333,20 +347,6 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
       margin-bottom: 0.5rem;
-    }
-
-    .raw-output {
-      background: #1a1a1a;
-      color: #e5e5e5;
-      padding: 1.5rem;
-      border-radius: 0.75rem;
-      font-family: 'Courier New', monospace;
-      font-size: 0.875rem;
-      line-height: 1.6;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      border: 1px solid #333;
     }
 
     /* Modern table styling */
@@ -437,6 +437,89 @@
       outline: 2px solid var(--accent);
       outline-offset: 2px;
     }
+
+    /* Added styles for enhanced markdown parsing */
+    .section-header {
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--primary);
+      margin: 1.5rem 0 1rem 0;
+      padding: 0.5rem 0;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .main-heading {
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 600;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+      margin: 2rem 0 1rem 0;
+      padding-left: 1rem;
+      border-left: 4px solid var(--accent);
+    }
+
+    .sub-heading {
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 600;
+      font-size: 1.25rem;
+      color: var(--primary);
+      margin: 1.5rem 0 0.75rem 0;
+    }
+
+    .title-heading {
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 700;
+      font-size: 1.75rem;
+      color: var(--text-primary);
+      margin: 2rem 0 1.5rem 0;
+      text-align: center;
+    }
+
+    .project-title {
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--accent);
+      margin: 1.25rem 0 0.5rem 0;
+      padding: 0.5rem 1rem;
+      background: var(--surface);
+      border-radius: 0.5rem;
+      border-left: 3px solid var(--accent);
+    }
+
+    .improvement-list {
+      margin: 1rem 0;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .bullet-item {
+      margin: 0.75rem 0;
+      padding: 0.75rem 1rem;
+      background: var(--surface-alt);
+      border-radius: 0.5rem;
+      border-left: 3px solid var(--primary-light);
+      line-height: 1.6;
+      position: relative;
+    }
+
+    .bullet-item::before {
+      content: '•';
+      color: var(--accent);
+      font-weight: bold;
+      position: absolute;
+      left: 0.5rem;
+    }
+
+    .bullet-item strong {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .section-break {
+      height: 1.5rem;
+    }
   </style>
 </head>
 <body>
@@ -468,11 +551,11 @@
       </div>
 
       <div class="btn-group">
-        <button class="btn btn-primary" onclick="callAPI('http://127.0.0.1:5000/score')">
+        <button class="btn btn-primary" onclick="scoreResume()">
           <span>⚖️</span>
           Score Resume
         </button>
-        <button class="btn btn-secondary" onclick="callAPI('http://127.0.0.1:5000/improve')">
+        <button class="btn btn-secondary" onclick="improveResume()">
           <span>✨</span>
           Improve Resume
         </button>
@@ -499,12 +582,12 @@
       </h2>
       
       <div class="results-content">
-        <div class="result-section">
+        <div class="result-section" id="score-section" style="display: none;">
           <h3>ATS Score</h3>
           <div id="score"></div>
         </div>
         
-        <div class="result-section">
+        <div class="result-section" id="improve-section" style="display: none;">
           <h3>Improvement Suggestions</h3>
           <div id="improvements"></div>
         </div>
@@ -513,107 +596,106 @@
   </main>
 
   <script>
-function simpleMarkdownToHtml(md) {
-  if (!md) return "";
-
-  // Headings
-  md = md.replace(/^### (.*)$/gim, '<h3>$1</h3>');
-  md = md.replace(/^## (.*)$/gim, '<h2>$1</h2>');
-  md = md.replace(/^# (.*)$/gim, '<h1>$1</h1>');
-  // Bold
-  md = md.replace(/\*\*(.*?)\*\*/gim, '<b>$1</b>');
-  // Unordered lists
-  md = md.replace(/^- (.*)$/gim, '<li>$1</li>');
-
-  // --- Improved Table Parsing ---
-  md = md.replace(
-    /((?:\|.*\|\n)+)/g,
-    function(tableBlock) {
-      const lines = tableBlock.trim().split('\n').filter(Boolean);
-      if (lines.length < 2) return tableBlock;
-      const headerCells = lines[0].split('|').map(cell => cell.trim()).filter(Boolean);
-      const dataRows = lines.slice(2);
-      let html = '<table class="score-table"><thead><tr>';
-      headerCells.forEach(cell => html += `<th>${cell}</th>`);
-      html += '</tr></thead><tbody>';
-      dataRows.forEach(row => {
-        const cells = row.split('|').map(cell => cell.trim()).filter(Boolean);
-        if (cells.length) {
-          html += '<tr>';
-          cells.forEach(cell => html += `<td>${cell}</td>`);
-          html += '</tr>';
-        }
-      });
-      html += '</tbody></table>';
-      return html;
-    }
-  );
-
-  // Wrap lists in <ul>
-  md = md.replace(/(<li>[\s\S]*?<\/li>)/gim, '<ul>$1</ul>');
-  // Line breaks (but not inside <table>)
-  md = md.replace(/\n/g, '<br>');
-  return md;
-}
-
-async function callAPI(endpoint) {
-  const resumeFile = document.getElementById("resume").files[0];
-  const jobDesc = document.getElementById("jd").value;
-  const raw = document.getElementById("raw");
-  const scoreBox = document.getElementById("score");
-  const improvementsBox = document.getElementById("improvements");
-
-  if (!resumeFile || !jobDesc) {
-    alert("Please upload resume and enter job description");
-    return;
+  function parseMarkdown(md) {
+    if (!md) return "";
+    // Fix: Ensure blank lines before headings and lists for marked.js compatibility
+    md = md.replace(/([^\n])(\n## )/g, '$1\n\n$2');
+    md = md.replace(/([^\n])(\n- )/g, '$1\n\n$2');
+    return marked.parse(md.trim());
   }
 
-  const formData = new FormData();
-  formData.append("resume", resumeFile);
-  formData.append("jd", jobDesc);
+    async function scoreResume() {
+      const resumeFile = document.getElementById("resume").files[0];
+      const jobDesc = document.getElementById("jd").value;
+      const scoreBox = document.getElementById("score");
+      const scoreSection = document.getElementById("score-section");
+      const improveSection = document.getElementById("improve-section");
+      const resultsCard = document.querySelector(".results-card");
 
-  // Show loading only in the relevant section
-  if (endpoint.includes("score")) {
-    scoreBox.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Analyzing...</div>';
-  } else if (endpoint.includes("improve")) {
-    improvementsBox.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Generating suggestions...</div>';
-  }
-
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await response.json();
-    console.log("API Response:", data);
-
-    if (data.error) {
-      if (endpoint.includes("score")) {
-        scoreBox.innerHTML = `<div class="error">${data.error}</div>`;
-      } else if (endpoint.includes("improve")) {
-        improvementsBox.innerHTML = `<div class="error">${data.error}</div>`;
+      if (!resumeFile || !jobDesc) {
+        alert("Please upload resume and enter job description");
+        return;
       }
+
+      const formData = new FormData();
+      formData.append("resume", resumeFile);
+      formData.append("jd", jobDesc);
+
+      // Show results card and score section only
+      resultsCard.classList.add("show");
+      scoreSection.style.display = "block";
+      improveSection.style.display = "none";
+      scoreBox.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Analyzing...</div>';
+
+      try {
+        const response = await fetch('https://gradioatsbackend.onrender.com/score', {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        console.log("Score API Response:", data);
+
+        if (data.error) {
+          scoreBox.innerHTML = "❌ Error: " + data.error;
+          return;
+        }
+
+        const htmlContent = parseMarkdown(data.result);
+        scoreBox.innerHTML = htmlContent;
+        
+        const scoreMatch = data.result.match(/(\d+)%/);
+        if (scoreMatch) {
+          const scoreValue = scoreMatch[1];
+          scoreBox.innerHTML = `<div class="score-display">${scoreValue}%</div>` + htmlContent;
+        }
+
+      } catch (err) {
+        console.error("Score request failed:", err);
+        scoreBox.innerHTML = "❌ Request failed: " + err.message;
+      }
+    }
+
+      async function improveResume() {
+    const resumeFile = document.getElementById("resume").files[0];
+    const jobDesc = document.getElementById("jd").value;
+    const improvementsBox = document.getElementById("improvements");
+    const scoreSection = document.getElementById("score-section");
+    const improveSection = document.getElementById("improve-section");
+    const resultsCard = document.querySelector(".results-card");
+
+    if (!resumeFile || !jobDesc) {
+      alert("Please upload resume and enter job description");
       return;
     }
 
-    // Only update the relevant section and scroll to it
-    if (endpoint.includes("score")) {
-      // Only show the score (not improvements)
-      let htmlContent = simpleMarkdownToHtml(data.result);
-      // Extract and highlight the score number
-      const scoreMatch = data.result.match(/(\d+)%/);
-      if (scoreMatch) {
-        const scoreValue = scoreMatch[1];
-        htmlContent = `<div class="score-display">${scoreValue}%</div>` + htmlContent;
+    const formData = new FormData();
+    formData.append("resume", resumeFile);
+    formData.append("jd", jobDesc);
+
+    // Show results card and improve section only
+    resultsCard.classList.add("show");
+    scoreSection.style.display = "none";
+    improveSection.style.display = "block";
+    improvementsBox.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Generating suggestions...</div>';
+
+    try {
+      const response = await fetch('https://gradioatsbackend.onrender.com/improve', {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+      console.log("Improve API Response:", data);
+
+      if (data.error) {
+        improvementsBox.innerHTML = "❌ Error: " + data.error;
+        return;
       }
-      scoreBox.innerHTML = htmlContent;
-      // Scroll to score section
-      scoreBox.parentElement.scrollIntoView({ behavior: "smooth", block: "center" });
-    } else if (endpoint.includes("improve")) {
-      // Only show improvements (not score)
-      if (typeof data.result === "string" && data.result.trim().startsWith("##")) {
-        improvementsBox.innerHTML = simpleMarkdownToHtml(data.result);
+
+      // Always use parseMarkdown for string results
+      if (typeof data.result === "string") {
+        improvementsBox.innerHTML = parseMarkdown(data.result);
       } else if (Array.isArray(data.result)) {
         improvementsBox.innerHTML = "<h3>💡 Suggestions:</h3><ul>" +
           data.result.map(s => `<li>${s}</li>`).join("") +
@@ -621,32 +703,27 @@ async function callAPI(endpoint) {
       } else {
         improvementsBox.innerHTML = `<p>${data.result}</p>`;
       }
-      // Scroll to improvements section
-      improvementsBox.parentElement.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
 
-  } catch (err) {
-    if (endpoint.includes("score")) {
-      scoreBox.innerHTML = `<div class="error">❌ Request failed: ${err.message}</div>`;
-    } else if (endpoint.includes("improve")) {
-      improvementsBox.innerHTML = `<div class="error">❌ Request failed: ${err.message}</div>`;
+    } catch (err) {
+      console.error("Improve request failed:", err);
+      improvementsBox.innerHTML = "❌ Request failed: " + err.message;
     }
   }
-}
 
-document.getElementById('resume').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (file) {
-    const fileInfo = document.createElement('div');
-    fileInfo.style.cssText = 'margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;';
-    fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    // Remove existing file info
-    const existing = e.target.parentNode.querySelector('[data-file-info]');
-    if (existing) existing.remove();
-    fileInfo.setAttribute('data-file-info', 'true');
-    e.target.parentNode.appendChild(fileInfo);
-  }
-});
-</script>
+    document.getElementById('resume').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const fileInfo = document.createElement('div');
+        fileInfo.style.cssText = 'margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;';
+        fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        
+        const existing = e.target.parentNode.querySelector('[data-file-info]');
+        if (existing) existing.remove();
+        
+        fileInfo.setAttribute('data-file-info', 'true');
+        e.target.parentNode.appendChild(fileInfo);
+      }
+    });
+  </script>
 </body>
 </html>
