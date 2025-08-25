@@ -17,7 +17,7 @@ def score(resume, jd):
         max_completion_tokens=400,
         temperature=0.8,
         messages=[
-            {"role":"system","content":"Act as an ATS. Compare résumé with JD. Return JSON: overall_score(0-100) and category_scores{skills,experience,education}, plus top_skill_gaps list."},
+            {"role":"system","content":"Act as an ATS. Compare résumé with JD. Return JSON: overall_score(0-100) and category_scores{skills,experience,education}, plus top_skill_gaps list In a way that will be easy to parse by markdown cdn"},
             {"role":"user","content":f"JOB_DESCRIPTION:\n{jd}\n\nRESUME:\n{resume}"}
         ]
     )
@@ -30,7 +30,7 @@ def improve(resume, jd=None):
         max_completion_tokens=400,
         temperature=0.7,
         messages=[
-            {"role":"system","content":"You are a résumé coach."},
+            {"role":"system","content":"You are a résumé coach.Give results In a way that will be easy to parse by markdown cdn"},
             {"role":"user","content":p}
         ]
     )
