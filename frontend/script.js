@@ -1,242 +1,121 @@
-const API_BASE_URL = 'https://atsbackend-jozn.onrender.com';
+function parseMarkdown(md) {
+  if (!md) return "";
+  // Ensure blank lines before headings and lists for marked.js compatibility
+  md = md.replace(/([^\n])(\n## )/g, '$1\n\n$2');
+  md = md.replace(/([^\n])(\n- )/g, '$1\n\n$2');
+  return marked.parse(md.trim());
+}
 
-// Tab functionality
-document.querySelectorAll('.tab-button').forEach(button => {
-    button.addEventListener('click', () => {
-        const tabName = button.dataset.tab;
-        
-        // Remove active class from all tabs and content
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        
-        // Add active class to clicked tab and corresponding content
-        button.classList.add('active');
-        document.getElementById(`${tabName}-tab`).classList.add('active');
-        
-        // Clear results
-        clearResults();
+async function scoreResume() {
+  const resumeFile = document.getElementById("resume").files[0];
+  const jobDesc = document.getElementById("jd").value;
+  const scoreBox = document.getElementById("score");
+  const scoreSection = document.getElementById("score-section");
+  const improveSection = document.getElementById("improve-section");
+  const resultsCard = document.querySelector(".results-card");
+
+  if (!resumeFile || !jobDesc) {
+    alert("Please upload resume and enter job description");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("resume", resumeFile);
+  formData.append("jd", jobDesc);
+
+  // Show results card and score section only
+  resultsCard.classList.add("show");
+  scoreSection.style.display = "block";
+  improveSection.style.display = "none";
+  scoreBox.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Analyzing...</div>';
+
+  try {
+    const response = await fetch('https://gradioatsbackend.onrender.com/score', {
+      method: "POST",
+      body: formData
     });
-});
 
-// File upload handlers
-document.querySelectorAll('input[type="file"]').forEach(input => {
-    input.addEventListener('change', function() {
-        const fileName = this.files[0] ? this.files[0].name : 'No file selected';
-        const fileNameSpan = document.getElementById(`${this.id}-name`);
-        if (fileNameSpan) {
-            fileNameSpan.textContent = fileName;
-        }
+    const data = await response.json();
+    if (data.error) {
+      scoreBox.innerHTML = "❌ Error: " + data.error;
+      return;
+    }
+
+    const htmlContent = parseMarkdown(data.result);
+    scoreBox.innerHTML = htmlContent;
+
+    const scoreMatch = data.result.match(/(\d+)%/);
+    if (scoreMatch) {
+      const scoreValue = scoreMatch[1];
+      scoreBox.innerHTML = `<div class="score-display">${scoreValue}%</div>` + htmlContent;
+    }
+
+  } catch (err) {
+    scoreBox.innerHTML = "❌ Request failed: " + err.message;
+  }
+}
+
+async function improveResume() {
+  const resumeFile = document.getElementById("resume").files[0];
+  const jobDesc = document.getElementById("jd").value;
+  const improvementsBox = document.getElementById("improvements");
+  const scoreSection = document.getElementById("score-section");
+  const improveSection = document.getElementById("improve-section");
+  const resultsCard = document.querySelector(".results-card");
+
+  if (!resumeFile || !jobDesc) {
+    alert("Please upload resume and enter job description");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("resume", resumeFile);
+  formData.append("jd", jobDesc);
+
+  // Show results card and improve section only
+  resultsCard.classList.add("show");
+  scoreSection.style.display = "none";
+  improveSection.style.display = "block";
+  improvementsBox.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Generating suggestions...</div>';
+
+  try {
+    const response = await fetch('https://gradioatsbackend.onrender.com/improve', {
+      method: "POST",
+      body: formData
     });
-});
 
-// Score form handler
-document.getElementById('score-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const resumeFile = document.getElementById('score-resume').files[0];
-    const jdText = document.getElementById('score-jd').value.trim();
-    
-    if (!resumeFile) {
-        showError('score-results', 'Please select a resume file.');
-        return;
+    const data = await response.json();
+    if (data.error) {
+      improvementsBox.innerHTML = "❌ Error: " + data.error;
+      return;
     }
-    
-    if (!jdText) {
-        showError('score-results', 'Please enter a job description.');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('resume', resumeFile);
-    formData.append('jd', jdText);
-    
-    try {
-        showLoading();
-        
-        const response = await fetch(`${API_BASE_URL}/score`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        hideLoading();
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        displayScoreResults(data);
-        
-    } catch (error) {
-        hideLoading();
-        showError('score-results', `Error: ${error.message}`);
-    }
-});
 
-// Improve form handler
-document.getElementById('improve-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const resumeFile = document.getElementById('improve-resume').files[0];
-    const jdText = document.getElementById('improve-jd').value.trim();
-    
-    if (!resumeFile) {
-        showError('improve-results', 'Please select a resume file.');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('resume', resumeFile);
-    if (jdText) {
-        formData.append('jd', jdText);
-    }
-    
-    try {
-        showLoading();
-        
-        const response = await fetch(`${API_BASE_URL}/improve`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        hideLoading();
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        displayImproveResults(data);
-        
-    } catch (error) {
-        hideLoading();
-        showError('improve-results', `Error: ${error.message}`);
-    }
-});
-
-// Helper functions
-function showLoading() {
-    document.getElementById('loading').classList.add('show');
-}
-
-function hideLoading() {
-    document.getElementById('loading').classList.remove('show');
-}
-
-function clearResults() {
-    document.querySelectorAll('.results').forEach(result => {
-        result.classList.remove('show');
-        result.innerHTML = '';
-    });
-}
-
-function showError(containerId, message) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = `<div class="error">${message}</div>`;
-    container.classList.add('show');
-}
-
-function displayScoreResults(data) {
-    const container = document.getElementById('score-results');
-    
-    let html = '';
-    
-    // Handle the JSON response from your score function
-    if (data.overall_score !== undefined) {
-        html = `
-            <div class="score-display">
-                <div class="score-number">${data.overall_score}%</div>
-                <div class="score-label">ATS Compatibility Score</div>
-            </div>
-        `;
-        
-        // Display category scores if available
-        if (data.category_scores) {
-            html += `
-                <div class="category-scores">
-            `;
-            
-            Object.entries(data.category_scores).forEach(([category, score]) => {
-                html += `
-                    <div class="category-score">
-                        <div class="score">${score}%</div>
-                        <div class="label">${category}</div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-        }
-        
-        // Display skill gaps if available
-        if (data.top_skill_gaps && data.top_skill_gaps.length > 0) {
-            html += `
-                <div class="skill-gaps">
-                    <h4>Top Skill Gaps</h4>
-                    <div>
-                        ${data.top_skill_gaps.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
-                    </div>
-                </div>
-            `;
-        }
-        
+    if (typeof data.result === "string") {
+      improvementsBox.innerHTML = parseMarkdown(data.result);
+    } else if (Array.isArray(data.result)) {
+      improvementsBox.innerHTML = "<h3>💡 Suggestions:</h3><ul>" +
+        data.result.map(s => `<li>${s}</li>`).join("") +
+        "</ul>";
     } else {
-        // Fallback for any other response format
-        html = `
-            <div class="suggestions">
-                <h3>Analysis Results</h3>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-            </div>
-        `;
+      improvementsBox.innerHTML = `<p>${data.result}</p>`;
     }
-    
-    container.innerHTML = html;
-    container.classList.add('show');
+
+  } catch (err) {
+    improvementsBox.innerHTML = "❌ Request failed: " + err.message;
+  }
 }
 
-function displayImproveResults(data) {
-    const container = document.getElementById('improve-results');
-    
-    let html = `
-        <div class="suggestions">
-            <h3>Improvement Suggestions</h3>
-    `;
-    
-    if (data.suggestions) {
-        // Handle string response from your improve function
-        if (typeof data.suggestions === 'string') {
-            // Split by bullet points or line breaks for better formatting
-            const suggestions = data.suggestions
-                .split(/[\n•]/)
-                .filter(s => s.trim())
-                .map(s => s.trim().replace(/^[-•\s]+/, ''));
-            
-            if (suggestions.length > 1) {
-                html += `
-                    <ul>
-                        ${suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
-                    </ul>
-                `;
-            } else {
-                html += `<p>${data.suggestions}</p>`;
-            }
-        } else if (Array.isArray(data.suggestions)) {
-            html += `
-                <ul>
-                    ${data.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
-                </ul>
-            `;
-        } else {
-            html += `<p>${data.suggestions}</p>`;
-        }
-    } else {
-        html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-    }
-    
-    html += '</div>';
-    
-    container.innerHTML = html;
-    container.classList.add('show');
-}
+document.getElementById('resume').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (file) {
+    const fileInfo = document.createElement('div');
+    fileInfo.style.cssText = 'margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;';
+    fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+
+    const existing = e.target.parentNode.querySelector('[data-file-info]');
+    if (existing) existing.remove();
+
+    fileInfo.setAttribute('data-file-info', 'true');
+    e.target.parentNode.appendChild(fileInfo);
+  }
+});
